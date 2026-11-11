@@ -26,13 +26,13 @@ func main() {
 	server := handlers.NewServer(health.New())
 	strict := oapi.NewStrictHandler(server, nil)
 	mux := http.NewServeMux()
-	router := oapi.HandlerFromMux(strict, mux)
+	oapi.HandlerFromMux(strict, mux)
 
 	docs.Register(mux, api.Spec)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
-		Handler:           router,
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
