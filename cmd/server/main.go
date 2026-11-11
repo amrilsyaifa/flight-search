@@ -10,8 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/amrilsyaifa/flight-search/api"
 	"github.com/amrilsyaifa/flight-search/internal/config"
 	"github.com/amrilsyaifa/flight-search/internal/handlers"
+	"github.com/amrilsyaifa/flight-search/internal/handlers/docs"
 	"github.com/amrilsyaifa/flight-search/internal/handlers/health"
 	"github.com/amrilsyaifa/flight-search/internal/oapi"
 )
@@ -23,7 +25,10 @@ func main() {
 	//Dependency
 	server := handlers.NewServer(health.New())
 	strict := oapi.NewStrictHandler(server, nil)
-	router := oapi.HandlerFromMux(strict, http.NewServeMux())
+	mux := http.NewServeMux()
+	router := oapi.HandlerFromMux(strict, mux)
+
+	docs.Register(mux, api.Spec)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
