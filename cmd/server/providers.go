@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/amrilsyaifa/flight-search/internal/providers"
+	"github.com/amrilsyaifa/flight-search/internal/providers/airasia"
 	"github.com/amrilsyaifa/flight-search/internal/providers/batik"
 	"github.com/amrilsyaifa/flight-search/internal/providers/garuda"
 	"github.com/amrilsyaifa/flight-search/internal/providers/lion"
@@ -28,9 +29,16 @@ func buildProviders(logger *slog.Logger) []providers.Provider {
 		MaxDelay: 400 * time.Millisecond,
 	}, nil)
 
+	airAsiaFetcher := providers.NewMockFetcher(mockdata.AirAsia, providers.MockConfig{
+		MinDelay:    50 * time.Millisecond,
+		MaxDelay:    150 * time.Millisecond,
+		FailureRate: 0.1, // 90% success rate
+	}, nil)
+
 	return []providers.Provider{
 		garuda.New(garudaFetcher, logger),
 		lion.New(lionFetcher, logger),
 		batik.New(batikFetcher, logger),
+		airasia.New(airAsiaFetcher, logger),
 	}
 }
