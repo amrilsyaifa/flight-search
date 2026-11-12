@@ -10,17 +10,133 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for CabinClass.
+const (
+	Business       CabinClass = "business"
+	Economy        CabinClass = "economy"
+	First          CabinClass = "first"
+	PremiumEconomy CabinClass = "premium_economy"
+)
+
+// Airline defines model for Airline.
+type Airline struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// Baggage defines model for Baggage.
+type Baggage struct {
+	CarryOn string `json:"carry_on"`
+	Checked string `json:"checked"`
+}
+
+// CabinClass defines model for CabinClass.
+type CabinClass string
+
+// Duration defines model for Duration.
+type Duration struct {
+	Formatted    string `json:"formatted"`
+	TotalMinutes int    `json:"total_minutes"`
+}
+
+// ErrorDetail defines model for ErrorDetail.
+type ErrorDetail struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// ErrorResponse defines model for ErrorResponse.
+type ErrorResponse struct {
+	Error ErrorDetail `json:"error"`
+}
+
+// Flight defines model for Flight.
+type Flight struct {
+	Aircraft       *string     `json:"aircraft"`
+	Airline        Airline     `json:"airline"`
+	Amenities      []string    `json:"amenities"`
+	Arrival        FlightPoint `json:"arrival"`
+	AvailableSeats int         `json:"available_seats"`
+	Baggage        Baggage     `json:"baggage"`
+	CabinClass     CabinClass  `json:"cabin_class"`
+	Departure      FlightPoint `json:"departure"`
+	Duration       Duration    `json:"duration"`
+	FlightNumber   string      `json:"flight_number"`
+	Id             string      `json:"id"`
+	Price          Price       `json:"price"`
+	Provider       string      `json:"provider"`
+	Stops          int         `json:"stops"`
+}
+
+// FlightPoint defines model for FlightPoint.
+type FlightPoint struct {
+	Airport   string    `json:"airport"`
+	City      string    `json:"city"`
+	Datetime  time.Time `json:"datetime"`
+	Timestamp int64     `json:"timestamp"`
+}
 
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+// Price defines model for Price.
+type Price struct {
+	Amount   int64  `json:"amount"`
+	Currency string `json:"currency"`
+}
+
+// SearchCriteria defines model for SearchCriteria.
+type SearchCriteria struct {
+	CabinClass    CabinClass         `json:"cabin_class"`
+	DepartureDate openapi_types.Date `json:"departure_date"`
+	Destination   string             `json:"destination"`
+	Origin        string             `json:"origin"`
+	Passengers    int                `json:"passengers"`
+}
+
+// SearchMetadata defines model for SearchMetadata.
+type SearchMetadata struct {
+	CacheHit           bool  `json:"cache_hit"`
+	ProvidersFailed    int   `json:"providers_failed"`
+	ProvidersQueried   int   `json:"providers_queried"`
+	ProvidersSucceeded int   `json:"providers_succeeded"`
+	SearchTimeMs       int64 `json:"search_time_ms"`
+	TotalResults       int   `json:"total_results"`
+}
+
+// SearchRequest defines model for SearchRequest.
+type SearchRequest struct {
+	CabinClass    CabinClass          `json:"cabinClass"`
+	DepartureDate openapi_types.Date  `json:"departureDate"`
+	Destination   string              `json:"destination"`
+	Origin        string              `json:"origin"`
+	Passengers    int                 `json:"passengers"`
+	ReturnDate    *openapi_types.Date `json:"returnDate"`
+}
+
+// SearchResponse defines model for SearchResponse.
+type SearchResponse struct {
+	Flights        []Flight       `json:"flights"`
+	Metadata       SearchMetadata `json:"metadata"`
+	SearchCriteria SearchCriteria `json:"search_criteria"`
+}
+
+// SearchFlightsJSONRequestBody defines body for SearchFlights for application/json ContentType.
+type SearchFlightsJSONRequestBody = SearchRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Search flights across all providers
+	// (POST /api/v1/flights/search)
+	SearchFlights(w http.ResponseWriter, r *http.Request)
 
 	// (GET /health)
 	GetHealth(w http.ResponseWriter, r *http.Request)
@@ -34,6 +150,20 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// SearchFlights operation middleware
+func (siw *ServerInterfaceWrapper) SearchFlights(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchFlights(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetHealth operation middleware
 func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
@@ -169,9 +299,45 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/flights/search", wrapper.SearchFlights)
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.GetHealth)
 
 	return m
+}
+
+type SearchFlightsRequestObject struct {
+	Body *SearchFlightsJSONRequestBody
+}
+
+type SearchFlightsResponseObject interface {
+	VisitSearchFlightsResponse(w http.ResponseWriter) error
+}
+
+type SearchFlights200JSONResponse SearchResponse
+
+func (response SearchFlights200JSONResponse) VisitSearchFlightsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchFlights400JSONResponse ErrorResponse
+
+func (response SearchFlights400JSONResponse) VisitSearchFlightsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchFlights500JSONResponse ErrorResponse
+
+func (response SearchFlights500JSONResponse) VisitSearchFlightsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type GetHealthRequestObject struct {
@@ -192,6 +358,9 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Search flights across all providers
+	// (POST /api/v1/flights/search)
+	SearchFlights(ctx context.Context, request SearchFlightsRequestObject) (SearchFlightsResponseObject, error)
 
 	// (GET /health)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
@@ -224,6 +393,37 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// SearchFlights operation middleware
+func (sh *strictHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
+	var request SearchFlightsRequestObject
+
+	var body SearchFlightsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchFlights(ctx, request.(SearchFlightsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchFlights")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchFlightsResponseObject); ok {
+		if err := validResponse.VisitSearchFlightsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetHealth operation middleware

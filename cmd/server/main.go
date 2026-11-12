@@ -14,8 +14,13 @@ import (
 	"github.com/amrilsyaifa/flight-search/internal/config"
 	"github.com/amrilsyaifa/flight-search/internal/handlers"
 	"github.com/amrilsyaifa/flight-search/internal/handlers/docs"
+	"github.com/amrilsyaifa/flight-search/internal/handlers/flight"
 	"github.com/amrilsyaifa/flight-search/internal/handlers/health"
 	"github.com/amrilsyaifa/flight-search/internal/oapi"
+	"github.com/amrilsyaifa/flight-search/internal/providers"
+	"github.com/amrilsyaifa/flight-search/internal/providers/garuda"
+	"github.com/amrilsyaifa/flight-search/internal/providers/mockdata"
+	"github.com/amrilsyaifa/flight-search/internal/services"
 )
 
 func main() {
@@ -23,7 +28,18 @@ func main() {
 	cfg := config.Load()
 
 	//Dependency
-	server := handlers.NewServer(health.New())
+	garudaFetcher := providers.NewMockFetcher(mockdata.GarudaIndonesia, providers.MockConfig{
+		MinDelay: 50 * time.Millisecond,
+		MaxDelay: 100 * time.Millisecond,
+	}, nil)
+
+	providerList := []providers.Provider{
+		garuda.New(garudaFetcher, logger),
+		// nanti: lion, batik, airasia
+	}
+
+	searchService := services.NewSearchService(providerList, logger)
+	server := handlers.NewServer(health.New(), flight.New(searchService, logger))
 	strict := oapi.NewStrictHandler(server, nil)
 	mux := http.NewServeMux()
 	oapi.HandlerFromMux(strict, mux)

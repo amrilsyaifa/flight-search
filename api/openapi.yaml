@@ -13,6 +13,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+  
+  /api/v1/flights/search:
+    post:
+      operationId: searchFlights
+      summary: Search flights across all providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            example:
+              origin: CGK
+              destination: DPS
+              departureDate: "2025-12-15"
+              returnDate: null
+              passengers: 1
+              cabinClass: economy
+      responses:
+        "200":
+          description: Aggregated results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthResponse:
@@ -22,3 +59,177 @@ components:
         status:
           type: string
           example: ok
+    CabinClass:
+      type: string
+      enum: [economy, premium_economy, business, first]
+    SearchRequest:
+      type: object
+      required: [origin, destination, departureDate, passengers, cabinClass]
+      properties:
+        origin:
+          type: string
+          example: CGK
+        destination:
+          type: string
+          example: DPS
+        departureDate:
+          type: string
+          format: date
+        returnDate:
+          type: string
+          format: date
+          nullable: true
+        passengers:
+          type: integer
+          minimum: 1
+          maximum: 9
+        cabinClass:
+          $ref: "#/components/schemas/CabinClass"
+    SearchResponse:
+      type: object
+      required: [search_criteria, metadata, flights]
+      properties:
+        search_criteria:
+          $ref: "#/components/schemas/SearchCriteria"
+        metadata:
+          $ref: "#/components/schemas/SearchMetadata"
+        flights:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flight"
+    SearchCriteria:
+      type: object
+      required: [origin, destination, departure_date, passengers, cabin_class]
+      properties:
+        origin:
+          type: string
+        destination:
+          type: string
+        departure_date:
+          type: string
+          format: date
+        passengers:
+          type: integer
+        cabin_class:
+          $ref: "#/components/schemas/CabinClass"
+    SearchMetadata:
+      type: object
+      required: [total_results, providers_queried, providers_succeeded, providers_failed, search_time_ms, cache_hit]
+      properties:
+        total_results:
+          type: integer
+        providers_queried:
+          type: integer
+        providers_succeeded:
+          type: integer
+        providers_failed:
+          type: integer
+        search_time_ms:
+          type: integer
+          format: int64
+        cache_hit:
+          type: boolean
+
+    Flight:
+      type: object
+      required: [id, provider, airline, flight_number, departure, arrival, duration, stops, price, available_seats, cabin_class, aircraft, amenities, baggage]
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+        airline:
+          $ref: "#/components/schemas/Airline"
+        flight_number:
+          type: string
+        departure:
+          $ref: "#/components/schemas/FlightPoint"
+        arrival:
+          $ref: "#/components/schemas/FlightPoint"
+        duration:
+          $ref: "#/components/schemas/Duration"
+        stops:
+          type: integer
+        price:
+          $ref: "#/components/schemas/Price"
+        available_seats:
+          type: integer
+        cabin_class:
+          $ref: "#/components/schemas/CabinClass"
+        aircraft:
+          type: string
+          nullable: true
+        amenities:
+          type: array
+          items:
+            type: string
+        baggage:
+          $ref: "#/components/schemas/Baggage"
+
+    Airline:
+      type: object
+      required: [name, code]
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+
+    FlightPoint:
+      type: object
+      required: [airport, city, datetime, timestamp]
+      properties:
+        airport:
+          type: string
+        city:
+          type: string
+        datetime:
+          type: string
+          format: date-time
+        timestamp:
+          type: integer
+          format: int64
+
+    Duration:
+      type: object
+      required: [total_minutes, formatted]
+      properties:
+        total_minutes:
+          type: integer
+        formatted:
+          type: string
+
+    Price:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: integer
+          format: int64
+        currency:
+          type: string
+
+    Baggage:
+      type: object
+      required: [carry_on, checked]
+      properties:
+        carry_on:
+          type: string
+        checked:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
