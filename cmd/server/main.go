@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "time/tzdata" // Embeds the IANA time zone database
+
 	"github.com/amrilsyaifa/flight-search/api"
 	"github.com/amrilsyaifa/flight-search/internal/config"
 	"github.com/amrilsyaifa/flight-search/internal/handlers"
@@ -17,9 +19,6 @@ import (
 	"github.com/amrilsyaifa/flight-search/internal/handlers/flight"
 	"github.com/amrilsyaifa/flight-search/internal/handlers/health"
 	"github.com/amrilsyaifa/flight-search/internal/oapi"
-	"github.com/amrilsyaifa/flight-search/internal/providers"
-	"github.com/amrilsyaifa/flight-search/internal/providers/garuda"
-	"github.com/amrilsyaifa/flight-search/internal/providers/mockdata"
 	"github.com/amrilsyaifa/flight-search/internal/services"
 )
 
@@ -28,17 +27,8 @@ func main() {
 	cfg := config.Load()
 
 	//Dependency
-	garudaFetcher := providers.NewMockFetcher(mockdata.GarudaIndonesia, providers.MockConfig{
-		MinDelay: 50 * time.Millisecond,
-		MaxDelay: 100 * time.Millisecond,
-	}, nil)
 
-	providerList := []providers.Provider{
-		garuda.New(garudaFetcher, logger),
-		// nanti: lion, batik, airasia
-	}
-
-	searchService := services.NewSearchService(providerList, logger)
+	searchService := services.NewSearchService(buildProviders(logger), logger)
 	server := handlers.NewServer(health.New(), flight.New(searchService, logger))
 	strict := oapi.NewStrictHandler(server, nil)
 	mux := http.NewServeMux()

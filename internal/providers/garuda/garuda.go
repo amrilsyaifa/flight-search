@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/amrilsyaifa/flight-search/internal/models"
@@ -75,7 +74,7 @@ func normalize(raw flight) (models.Flight, error) {
 		return models.Flight{}, fmt.Errorf("arrival %s is not after departure %s", arr.Time, dep.Time)
 	}
 
-	cabin, err := cabinClass(raw.FareClass)
+	cabin, err := providers.ParseCabinClass(raw.FareClass)
 	if err != nil {
 		return models.Flight{}, err
 	}
@@ -179,20 +178,6 @@ func parseTime(s string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("invalid time %q: %w", s, err)
 	}
 	return t, nil
-}
-
-func cabinClass(s string) (models.CabinClass, error) {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "economy":
-		return models.CabinEconomy, nil
-	case "premium_economy", "premium economy":
-		return models.CabinPremiumEconomy, nil
-	case "business":
-		return models.CabinBusiness, nil
-	case "first":
-		return models.CabinFirst, nil
-	}
-	return "", fmt.Errorf("unknown fare_class %q", s)
 }
 
 func pieces(n int) string {
