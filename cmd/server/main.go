@@ -32,8 +32,15 @@ func main() {
 	}
 
 	//Dependency
+	flightCache, closeCache, err := buildCache(cfg, logger)
+	if err != nil {
+		logger.Error("cache unavailable", "error", err)
+		os.Exit(1)
+	}
+	defer closeCache()
+
 	agg := aggregator.New(buildProviders(logger), cfg.ProviderTimeout, logger)
-	searchService := services.NewSearchService(agg, logger)
+	searchService := services.NewSearchService(agg, flightCache, cfg.CacheTTL, logger)
 	server := handlers.NewServer(health.New(), flight.New(searchService, logger))
 	strict := oapi.NewStrictHandler(server, nil)
 	mux := http.NewServeMux()
