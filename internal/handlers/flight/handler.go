@@ -11,6 +11,7 @@ import (
 
 type SearchService interface {
 	Search(ctx context.Context, req models.SearchRequest) (models.SearchResult, error)
+	SearchMultiCity(ctx context.Context, req models.MultiCityRequest) (models.MultiCityResult, error)
 }
 
 type Handler struct {

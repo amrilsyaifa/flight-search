@@ -199,6 +199,40 @@
         "meal",
         "entertainment"
       ]
+    },
+    {
+      "flight_id": "GA313",
+      "airline": "Garuda Indonesia",
+      "airline_code": "GA",
+      "departure": {
+        "airport": "SUB",
+        "city": "Surabaya",
+        "time": "2025-12-20T07:00:00+07:00",
+        "terminal": "2"
+      },
+      "arrival": {
+        "airport": "CGK",
+        "city": "Jakarta",
+        "time": "2025-12-20T08:30:00+07:00",
+        "terminal": "3"
+      },
+      "duration_minutes": 90,
+      "stops": 0,
+      "aircraft": "Boeing 737-800",
+      "price": {
+        "amount": 950000,
+        "currency": "IDR"
+      },
+      "available_seats": 30,
+      "fare_class": "economy",
+      "baggage": {
+        "carry_on": 1,
+        "checked": 2
+      },
+      "amenities": [
+        "wifi",
+        "meal"
+      ]
     }
   ]
 }

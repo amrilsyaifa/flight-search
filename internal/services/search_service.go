@@ -50,36 +50,31 @@ func (s *SearchService) Search(ctx context.Context, req models.SearchRequest) (m
 	}
 
 	start := time.Now()
-	result := models.SearchResult{Criteria: req.Criteria}
-
-	if !req.Criteria.IsRoundTrip() {
-		out := s.searchLeg(ctx, req.Criteria, req)
-		result.Flights = out.flights
-		result.Metadata = out.metadata()
-	} else {
-		// Each goroutine writes only its own variable, so no mutex is needed.
-		var out, back leg
-		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() { defer wg.Done(); out = s.searchLeg(ctx, req.Criteria, req) }()
-		go func() { defer wg.Done(); back = s.searchLeg(ctx, req.Criteria.ReturnLeg(), req) }()
-		wg.Wait()
-
-		result.Flights = out.flights
-		result.ReturnFlights = back.flights
-		result.Metadata = combine(out.metadata(), back.metadata())
+	criteria := []models.SearchCriteria{req.Criteria}
+	if req.Criteria.IsRoundTrip() {
+		criteria = append(criteria, req.Criteria.ReturnLeg())
 	}
 
+	legs := s.searchLegs(ctx, criteria, req.Filters, req.Sort)
+
+	result := models.SearchResult{
+		Criteria: req.Criteria,
+		Flights:  legs[0].flights,
+		Metadata: combine(legs),
+	}
+	if req.Criteria.IsRoundTrip() {
+		result.ReturnFlights = legs[1].flights
+	}
 	result.Metadata.SearchTime = time.Since(start)
 	return result, nil
 }
 
-func (s *SearchService) searchLeg(ctx context.Context, c models.SearchCriteria, req models.SearchRequest) leg {
+func (s *SearchService) searchLeg(ctx context.Context, c models.SearchCriteria, f models.SearchFilters, so models.SortOption) leg {
 	agg, hit := s.fetch(ctx, c)
 
-	flights := search.Filter(agg.Flights, c, req.Filters)
+	flights := search.Filter(agg.Flights, c, f)
 	flights = search.Dedupe(flights)
-	search.Sort(flights, req.Sort)
+	search.Sort(flights, so)
 
 	return leg{flights: flights, agg: agg, cacheHit: hit}
 }
@@ -147,11 +142,47 @@ func (s *SearchService) writeCache(ctx context.Context, key string, res aggregat
 	}
 }
 
-func combine(a, b models.SearchMetadata) models.SearchMetadata {
-	return models.SearchMetadata{
-		ProvidersQueried:   a.ProvidersQueried + b.ProvidersQueried,
-		ProvidersSucceeded: a.ProvidersSucceeded + b.ProvidersSucceeded,
-		ProvidersFailed:    a.ProvidersFailed + b.ProvidersFailed,
-		CacheHit:           a.CacheHit && b.CacheHit,
+func combine(legs []leg) models.SearchMetadata {
+	m := models.SearchMetadata{CacheHit: true}
+	for _, l := range legs {
+		m.ProvidersQueried += l.agg.Queried
+		m.ProvidersSucceeded += l.agg.Succeeded
+		m.ProvidersFailed += l.agg.Failed
+		m.CacheHit = m.CacheHit && l.cacheHit
 	}
+	return m
+}
+
+func (s *SearchService) SearchMultiCity(ctx context.Context, req models.MultiCityRequest) (models.MultiCityResult, error) {
+	if err := validation.MultiCityRequest(req); err != nil {
+		return models.MultiCityResult{}, err
+	}
+
+	start := time.Now()
+	legs := s.searchLegs(ctx, req.Legs, req.Filters, req.Sort)
+
+	result := models.MultiCityResult{
+		Legs:     make([]models.LegResult, len(legs)),
+		Metadata: combine(legs),
+	}
+	for i, l := range legs {
+		result.Legs[i] = models.LegResult{Criteria: req.Legs[i], Flights: l.flights}
+	}
+	result.Metadata.SearchTime = time.Since(start)
+	return result, nil
+}
+
+func (s *SearchService) searchLegs(ctx context.Context, criteria []models.SearchCriteria, f models.SearchFilters, so models.SortOption) []leg {
+	out := make([]leg, len(criteria))
+
+	var wg sync.WaitGroup
+	for i, c := range criteria {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			out[i] = s.searchLeg(ctx, c, f, so)
+		}()
+	}
+	wg.Wait()
+	return out
 }

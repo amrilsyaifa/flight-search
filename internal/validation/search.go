@@ -9,9 +9,32 @@ import (
 
 var airportCode = regexp.MustCompile(`^[A-Z]{3}$`)
 
+const (
+	minLegs = 2
+	maxLegs = 5
+)
+
 func SearchRequest(r models.SearchRequest) error {
 	if err := SearchCriteria(r.Criteria); err != nil {
 		return err
+	}
+	if err := searchFilters(r.Filters); err != nil {
+		return err
+	}
+	return sortOption(r.Sort)
+}
+
+func MultiCityRequest(r models.MultiCityRequest) error {
+	if len(r.Legs) < minLegs || len(r.Legs) > maxLegs {
+		return invalid(fmt.Sprintf("legs: need between %d and %d legs, got %d", minLegs, maxLegs, len(r.Legs)))
+	}
+	for i, leg := range r.Legs {
+		if err := SearchCriteria(leg); err != nil {
+			return fmt.Errorf("legs[%d]: %w", i, err)
+		}
+		if i > 0 && leg.DepartureDate.Before(r.Legs[i-1].DepartureDate) {
+			return invalid(fmt.Sprintf("legs[%d]: departureDate must not be before the previous leg", i))
+		}
 	}
 	if err := searchFilters(r.Filters); err != nil {
 		return err

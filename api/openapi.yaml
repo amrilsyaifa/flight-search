@@ -15,7 +15,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
 
-  
   /api/v1/flights/search:
     post:
       operationId: searchFlights
@@ -55,6 +54,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+        "500":
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/flights/search/multi-city:
+    post:
+      operationId: searchMultiCity
+      summary: Search several one-way legs in one request (multi-city)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MultiCitySearchRequest"
+            example:
+              legs:
+                - { origin: CGK, destination: DPS, departureDate: "2025-12-15" }
+                - { origin: DPS, destination: SUB, departureDate: "2025-12-18" }
+                - { origin: SUB, destination: CGK, departureDate: "2025-12-20" }
+              passengers: 1
+              cabinClass: economy
+      responses:
+        "200":
+          description: One list of flights per leg, in request order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MultiCitySearchResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Unexpected error
           content:
@@ -149,7 +185,15 @@ components:
 
     SearchMetadata:
       type: object
-      required: [total_results, providers_queried, providers_succeeded, providers_failed, search_time_ms, cache_hit]
+      required:
+        [
+          total_results,
+          providers_queried,
+          providers_succeeded,
+          providers_failed,
+          search_time_ms,
+          cache_hit,
+        ]
       properties:
         total_results:
           type: integer
@@ -167,7 +211,23 @@ components:
 
     Flight:
       type: object
-      required: [id, provider, airline, flight_number, departure, arrival, duration, stops, price, available_seats, cabin_class, aircraft, amenities, baggage]
+      required:
+        [
+          id,
+          provider,
+          airline,
+          flight_number,
+          departure,
+          arrival,
+          duration,
+          stops,
+          price,
+          available_seats,
+          cabin_class,
+          aircraft,
+          amenities,
+          baggage,
+        ]
       properties:
         id:
           x-order: 1
@@ -327,6 +387,89 @@ components:
           type: string
           enum: [asc, desc]
           default: asc
+
+    MultiCitySearchRequest:
+      type: object
+      required: [legs, passengers, cabinClass]
+      properties:
+        legs:
+          type: array
+          minItems: 2
+          maxItems: 5
+          description: Legs in travel order. Dates must not go backwards.
+          items:
+            $ref: "#/components/schemas/LegRequest"
+        passengers:
+          type: integer
+          minimum: 1
+          maximum: 9
+        cabinClass:
+          $ref: "#/components/schemas/CabinClass"
+        filters:
+          $ref: "#/components/schemas/SearchFilters"
+        sort:
+          $ref: "#/components/schemas/SortOption"
+
+    LegRequest:
+      type: object
+      required: [origin, destination, departureDate]
+      properties:
+        origin:
+          type: string
+          example: CGK
+        destination:
+          type: string
+          example: DPS
+        departureDate:
+          type: string
+          format: date
+
+    MultiCitySearchResponse:
+      type: object
+      required: [search_criteria, metadata, legs]
+      properties:
+        search_criteria:
+          x-order: 1
+          $ref: "#/components/schemas/MultiCityCriteria"
+        metadata:
+          x-order: 2
+          $ref: "#/components/schemas/SearchMetadata"
+        legs:
+          x-order: 3
+          type: array
+          items:
+            $ref: "#/components/schemas/LegResult"
+
+    MultiCityCriteria:
+      type: object
+      required: [passengers, cabin_class]
+      properties:
+        passengers:
+          x-order: 1
+          type: integer
+        cabin_class:
+          x-order: 2
+          $ref: "#/components/schemas/CabinClass"
+
+    LegResult:
+      type: object
+      required: [origin, destination, departure_date, flights]
+      properties:
+        origin:
+          x-order: 1
+          type: string
+        destination:
+          x-order: 2
+          type: string
+        departure_date:
+          x-order: 3
+          type: string
+          format: date
+        flights:
+          x-order: 4
+          type: array
+          items:
+            $ref: "#/components/schemas/Flight"
 
     ErrorResponse:
       type: object

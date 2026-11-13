@@ -26,3 +26,7 @@ func (s *Server) GetHealth(ctx context.Context, req oapi.GetHealthRequestObject)
 func (s *Server) SearchFlights(ctx context.Context, req oapi.SearchFlightsRequestObject) (oapi.SearchFlightsResponseObject, error) {
 	return s.flightHandler.SearchFlights(ctx, req)
 }
+
+func (s *Server) SearchMultiCity(ctx context.Context, req oapi.SearchMultiCityRequestObject) (oapi.SearchMultiCityResponseObject, error) {
+	return s.flightHandler.SearchMultiCity(ctx, req)
+}

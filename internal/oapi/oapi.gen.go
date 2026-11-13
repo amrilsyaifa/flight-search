@@ -102,6 +102,47 @@ type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+// LegRequest defines model for LegRequest.
+type LegRequest struct {
+	DepartureDate openapi_types.Date `json:"departureDate"`
+	Destination   string             `json:"destination"`
+	Origin        string             `json:"origin"`
+}
+
+// LegResult defines model for LegResult.
+type LegResult struct {
+	Origin        string             `json:"origin"`
+	Destination   string             `json:"destination"`
+	DepartureDate openapi_types.Date `json:"departure_date"`
+	Flights       []Flight           `json:"flights"`
+}
+
+// MultiCityCriteria defines model for MultiCityCriteria.
+type MultiCityCriteria struct {
+	Passengers int        `json:"passengers"`
+	CabinClass CabinClass `json:"cabin_class"`
+}
+
+// MultiCitySearchRequest defines model for MultiCitySearchRequest.
+type MultiCitySearchRequest struct {
+	CabinClass CabinClass `json:"cabinClass"`
+
+	// Filters All filters are optional. Omitted means no constraint.
+	Filters *SearchFilters `json:"filters,omitempty"`
+
+	// Legs Legs in travel order. Dates must not go backwards.
+	Legs       []LegRequest `json:"legs"`
+	Passengers int          `json:"passengers"`
+	Sort       *SortOption  `json:"sort,omitempty"`
+}
+
+// MultiCitySearchResponse defines model for MultiCitySearchResponse.
+type MultiCitySearchResponse struct {
+	SearchCriteria MultiCityCriteria `json:"search_criteria"`
+	Metadata       SearchMetadata    `json:"metadata"`
+	Legs           []LegResult       `json:"legs"`
+}
+
 // Price defines model for Price.
 type Price struct {
 	Amount   int64  `json:"amount"`
@@ -193,11 +234,17 @@ type SortOptionOrder string
 // SearchFlightsJSONRequestBody defines body for SearchFlights for application/json ContentType.
 type SearchFlightsJSONRequestBody = SearchRequest
 
+// SearchMultiCityJSONRequestBody defines body for SearchMultiCity for application/json ContentType.
+type SearchMultiCityJSONRequestBody = MultiCitySearchRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Search flights across all providers
 	// (POST /api/v1/flights/search)
 	SearchFlights(w http.ResponseWriter, r *http.Request)
+	// Search several one-way legs in one request (multi-city)
+	// (POST /api/v1/flights/search/multi-city)
+	SearchMultiCity(w http.ResponseWriter, r *http.Request)
 
 	// (GET /health)
 	GetHealth(w http.ResponseWriter, r *http.Request)
@@ -217,6 +264,20 @@ func (siw *ServerInterfaceWrapper) SearchFlights(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SearchFlights(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchMultiCity operation middleware
+func (siw *ServerInterfaceWrapper) SearchMultiCity(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchMultiCity(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -361,6 +422,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/flights/search", wrapper.SearchFlights)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/flights/search/multi-city", wrapper.SearchMultiCity)
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.GetHealth)
 
 	return m
@@ -401,6 +463,41 @@ func (response SearchFlights500JSONResponse) VisitSearchFlightsResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SearchMultiCityRequestObject struct {
+	Body *SearchMultiCityJSONRequestBody
+}
+
+type SearchMultiCityResponseObject interface {
+	VisitSearchMultiCityResponse(w http.ResponseWriter) error
+}
+
+type SearchMultiCity200JSONResponse MultiCitySearchResponse
+
+func (response SearchMultiCity200JSONResponse) VisitSearchMultiCityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchMultiCity400JSONResponse ErrorResponse
+
+func (response SearchMultiCity400JSONResponse) VisitSearchMultiCityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchMultiCity500JSONResponse ErrorResponse
+
+func (response SearchMultiCity500JSONResponse) VisitSearchMultiCityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetHealthRequestObject struct {
 }
 
@@ -422,6 +519,9 @@ type StrictServerInterface interface {
 	// Search flights across all providers
 	// (POST /api/v1/flights/search)
 	SearchFlights(ctx context.Context, request SearchFlightsRequestObject) (SearchFlightsResponseObject, error)
+	// Search several one-way legs in one request (multi-city)
+	// (POST /api/v1/flights/search/multi-city)
+	SearchMultiCity(ctx context.Context, request SearchMultiCityRequestObject) (SearchMultiCityResponseObject, error)
 
 	// (GET /health)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
@@ -480,6 +580,37 @@ func (sh *strictHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SearchFlightsResponseObject); ok {
 		if err := validResponse.VisitSearchFlightsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SearchMultiCity operation middleware
+func (sh *strictHandler) SearchMultiCity(w http.ResponseWriter, r *http.Request) {
+	var request SearchMultiCityRequestObject
+
+	var body SearchMultiCityJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchMultiCity(ctx, request.(SearchMultiCityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchMultiCity")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchMultiCityResponseObject); ok {
+		if err := validResponse.VisitSearchMultiCityResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -225,6 +225,48 @@
             "hold": "20 kg"
           }
         }
+      },
+      {
+        "id": "JT693",
+        "carrier": {
+          "name": "Lion Air",
+          "iata": "JT"
+        },
+        "route": {
+          "from": {
+            "code": "DPS",
+            "name": "Ngurah Rai International",
+            "city": "Denpasar"
+          },
+          "to": {
+            "code": "SUB",
+            "name": "Juanda International",
+            "city": "Surabaya"
+          }
+        },
+        "schedule": {
+          "departure": "2025-12-18T10:00:00",
+          "departure_timezone": "Asia/Makassar",
+          "arrival": "2025-12-18T10:05:00",
+          "arrival_timezone": "Asia/Jakarta"
+        },
+        "flight_time": 65,
+        "is_direct": true,
+        "pricing": {
+          "total": 550000,
+          "currency": "IDR",
+          "fare_type": "ECONOMY"
+        },
+        "seats_left": 44,
+        "plane_type": "Boeing 737-800",
+        "services": {
+          "wifi_available": false,
+          "meals_included": false,
+          "baggage_allowance": {
+            "cabin": "7 kg",
+            "hold": "20 kg"
+          }
+        }
       }
     ]
   }
