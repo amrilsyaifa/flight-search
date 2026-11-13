@@ -7,7 +7,7 @@ import (
 
 	"github.com/amrilsyaifa/flight-search/internal/aggregator"
 	"github.com/amrilsyaifa/flight-search/internal/models"
-	"github.com/amrilsyaifa/flight-search/internal/pkg/search"
+	"github.com/amrilsyaifa/flight-search/internal/pkg/helper/search"
 	"github.com/amrilsyaifa/flight-search/internal/validation"
 )
 
