@@ -37,7 +37,7 @@ func searchFilters(f models.SearchFilters) error {
 
 func sortOption(s models.SortOption) error {
 	switch s.By {
-	case models.SortByPrice, models.SortByDuration, models.SortByDepartureTime, models.SortByArrivalTime:
+	case models.SortByBestValue, models.SortByPrice, models.SortByDuration, models.SortByDepartureTime, models.SortByArrivalTime:
 	default:
 		return invalid(fmt.Sprintf("unsupported sort.by %q", s.By))
 	}

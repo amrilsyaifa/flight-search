@@ -27,6 +27,7 @@ const (
 // Defines values for SortOptionBy.
 const (
 	SortOptionByArrivalTime   SortOptionBy = "arrival_time"
+	SortOptionByBestValue     SortOptionBy = "best_value"
 	SortOptionByDepartureTime SortOptionBy = "departure_time"
 	SortOptionByDuration      SortOptionBy = "duration"
 	SortOptionByPrice         SortOptionBy = "price"
@@ -169,11 +170,12 @@ type SearchResponse struct {
 
 // SortOption defines model for SortOption.
 type SortOption struct {
+	// By best_value combines price, total duration and number of stops.
 	By    *SortOptionBy    `json:"by,omitempty"`
 	Order *SortOptionOrder `json:"order,omitempty"`
 }
 
-// SortOptionBy defines model for SortOption.By.
+// SortOptionBy best_value combines price, total duration and number of stops.
 type SortOptionBy string
 
 // SortOptionOrder defines model for SortOption.Order.

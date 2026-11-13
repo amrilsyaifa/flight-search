@@ -26,6 +26,7 @@ type SearchFilters struct {
 type SortField string
 
 const (
+	SortByBestValue     SortField = "best_value"
 	SortByPrice         SortField = "price"
 	SortByDuration      SortField = "duration"
 	SortByDepartureTime SortField = "departure_time"
@@ -44,7 +45,7 @@ type SortOption struct {
 	Order SortOrder
 }
 
-var DefaultSort = SortOption{By: SortByPrice, Order: SortAsc}
+var DefaultSort = SortOption{By: SortByBestValue, Order: SortAsc}
 
 type TimeOfDay int
 

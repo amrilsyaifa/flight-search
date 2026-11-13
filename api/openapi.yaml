@@ -302,8 +302,9 @@ components:
       properties:
         by:
           type: string
-          enum: [price, duration, departure_time, arrival_time]
-          default: price
+          enum: [best_value, price, duration, departure_time, arrival_time]
+          default: best_value
+          description: best_value combines price, total duration and number of stops.
         order:
           type: string
           enum: [asc, desc]

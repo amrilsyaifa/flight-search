@@ -8,7 +8,7 @@ import (
 )
 
 func Sort(flights []models.Flight, opt models.SortOption) {
-	primary := comparator(opt.By)
+	primary := comparator(opt.By, flights)
 
 	slices.SortStableFunc(flights, func(a, b models.Flight) int {
 		c := primary(a, b)
@@ -22,8 +22,11 @@ func Sort(flights []models.Flight, opt models.SortOption) {
 	})
 }
 
-func comparator(by models.SortField) func(a, b models.Flight) int {
+func comparator(by models.SortField, flights []models.Flight) func(a, b models.Flight) int {
 	switch by {
+	case models.SortByBestValue:
+		scores := BestValueScores(flights)
+		return func(a, b models.Flight) int { return cmp.Compare(scores[a.ID], scores[b.ID]) }
 	case models.SortByDuration:
 		return func(a, b models.Flight) int { return cmp.Compare(a.DurationMinutes, b.DurationMinutes) }
 	case models.SortByDepartureTime:
