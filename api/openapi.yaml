@@ -239,13 +239,20 @@ components:
 
     Price:
       type: object
-      required: [amount, currency]
+      required: [amount, currency, formatted]
       properties:
         amount:
+          x-order: 1
           type: integer
           format: int64
         currency:
+          x-order: 2
           type: string
+        formatted:
+          x-order: 3
+          type: string
+          description: Display string with thousands separators.
+          example: Rp 485.000
 
     Baggage:
       type: object

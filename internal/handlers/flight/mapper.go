@@ -9,6 +9,7 @@ import (
 
 	"github.com/amrilsyaifa/flight-search/internal/models"
 	"github.com/amrilsyaifa/flight-search/internal/oapi"
+	"github.com/amrilsyaifa/flight-search/internal/pkg/helper/money"
 )
 
 // ---------- request: API -> domain ----------
@@ -75,8 +76,12 @@ func toAPIFlight(f models.Flight) oapi.Flight {
 			TotalMinutes: f.DurationMinutes,
 			Formatted:    formatDuration(f.DurationMinutes),
 		},
-		Stops:          f.Stops(),
-		Price:          oapi.Price{Amount: f.Price.Amount, Currency: f.Price.Currency},
+		Stops: f.Stops(),
+		Price: oapi.Price{
+			Amount:    f.Price.Amount,
+			Currency:  f.Price.Currency,
+			Formatted: money.Format(f.Price.Amount, f.Price.Currency),
+		},
 		AvailableSeats: f.AvailableSeats,
 		CabinClass:     oapi.CabinClass(f.CabinClass),
 		Aircraft:       aircraft,

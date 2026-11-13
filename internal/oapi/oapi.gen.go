@@ -106,6 +106,9 @@ type HealthResponse struct {
 type Price struct {
 	Amount   int64  `json:"amount"`
 	Currency string `json:"currency"`
+
+	// Formatted Display string with thousands separators.
+	Formatted string `json:"formatted"`
 }
 
 // SearchCriteria defines model for SearchCriteria.

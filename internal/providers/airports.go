@@ -6,6 +6,7 @@ var airportCities = map[string]string{
 	"SUB": "Surabaya",
 	"UPG": "Makassar",
 	"SOC": "Solo",
+	"DJJ": "Jayapura",
 	// Add more city
 }
 
