@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/singleflight"
@@ -32,6 +33,12 @@ type SearchService struct {
 	inflight   singleflight.Group
 }
 
+type leg struct {
+	flights  []models.Flight
+	agg      aggregator.Result
+	cacheHit bool
+}
+
 func NewSearchService(agg FlightAggregator, c Cache, cacheTTL time.Duration, logger *slog.Logger) *SearchService {
 	return &SearchService{aggregator: agg, cache: c, cacheTTL: cacheTTL, logger: logger}
 }
@@ -43,23 +50,47 @@ func (s *SearchService) Search(ctx context.Context, req models.SearchRequest) (m
 	}
 
 	start := time.Now()
-	agg, cacheHit := s.fetch(ctx, req.Criteria)
+	result := models.SearchResult{Criteria: req.Criteria}
 
-	flights := search.Filter(agg.Flights, req.Criteria, req.Filters)
+	if !req.Criteria.IsRoundTrip() {
+		out := s.searchLeg(ctx, req.Criteria, req)
+		result.Flights = out.flights
+		result.Metadata = out.metadata()
+	} else {
+		// Each goroutine writes only its own variable, so no mutex is needed.
+		var out, back leg
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() { defer wg.Done(); out = s.searchLeg(ctx, req.Criteria, req) }()
+		go func() { defer wg.Done(); back = s.searchLeg(ctx, req.Criteria.ReturnLeg(), req) }()
+		wg.Wait()
+
+		result.Flights = out.flights
+		result.ReturnFlights = back.flights
+		result.Metadata = combine(out.metadata(), back.metadata())
+	}
+
+	result.Metadata.SearchTime = time.Since(start)
+	return result, nil
+}
+
+func (s *SearchService) searchLeg(ctx context.Context, c models.SearchCriteria, req models.SearchRequest) leg {
+	agg, hit := s.fetch(ctx, c)
+
+	flights := search.Filter(agg.Flights, c, req.Filters)
 	flights = search.Dedupe(flights)
 	search.Sort(flights, req.Sort)
 
-	return models.SearchResult{
-		Criteria: req.Criteria,
-		Flights:  flights,
-		Metadata: models.SearchMetadata{
-			ProvidersQueried:   agg.Queried,
-			ProvidersSucceeded: agg.Succeeded,
-			ProvidersFailed:    agg.Failed,
-			SearchTime:         time.Since(start),
-			CacheHit:           cacheHit,
-		},
-	}, nil
+	return leg{flights: flights, agg: agg, cacheHit: hit}
+}
+
+func (l leg) metadata() models.SearchMetadata {
+	return models.SearchMetadata{
+		ProvidersQueried:   l.agg.Queried,
+		ProvidersSucceeded: l.agg.Succeeded,
+		ProvidersFailed:    l.agg.Failed,
+		CacheHit:           l.cacheHit,
+	}
 }
 
 func (s *SearchService) fetch(ctx context.Context, c models.SearchCriteria) (aggregator.Result, bool) {
@@ -113,5 +144,14 @@ func (s *SearchService) writeCache(ctx context.Context, key string, res aggregat
 	}
 	if err := s.cache.Set(ctx, key, raw, s.cacheTTL); err != nil {
 		s.logger.WarnContext(ctx, "cache write failed", "key", key, "error", err)
+	}
+}
+
+func combine(a, b models.SearchMetadata) models.SearchMetadata {
+	return models.SearchMetadata{
+		ProvidersQueried:   a.ProvidersQueried + b.ProvidersQueried,
+		ProvidersSucceeded: a.ProvidersSucceeded + b.ProvidersSucceeded,
+		ProvidersFailed:    a.ProvidersFailed + b.ProvidersFailed,
+		CacheHit:           a.CacheHit && b.CacheHit,
 	}
 }

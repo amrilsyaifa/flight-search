@@ -113,11 +113,12 @@ type Price struct {
 
 // SearchCriteria defines model for SearchCriteria.
 type SearchCriteria struct {
-	CabinClass    CabinClass         `json:"cabin_class"`
-	DepartureDate openapi_types.Date `json:"departure_date"`
-	Destination   string             `json:"destination"`
-	Origin        string             `json:"origin"`
-	Passengers    int                `json:"passengers"`
+	CabinClass    CabinClass          `json:"cabin_class"`
+	DepartureDate openapi_types.Date  `json:"departure_date"`
+	Destination   string              `json:"destination"`
+	Origin        string              `json:"origin"`
+	Passengers    int                 `json:"passengers"`
+	ReturnDate    *openapi_types.Date `json:"return_date"`
 }
 
 // SearchFilters All filters are optional. Omitted means no constraint.
@@ -168,7 +169,12 @@ type SearchRequest struct {
 type SearchResponse struct {
 	SearchCriteria SearchCriteria `json:"search_criteria"`
 	Metadata       SearchMetadata `json:"metadata"`
-	Flights        []Flight       `json:"flights"`
+
+	// Flights Outbound flights (origin -> destination).
+	Flights []Flight `json:"flights"`
+
+	// ReturnFlights Only for round trips (returnDate set) - flights destination -> origin.
+	ReturnFlights *[]Flight `json:"return_flights,omitempty"`
 }
 
 // SortOption defines model for SortOption.

@@ -115,8 +115,15 @@ components:
           x-order: 2
           $ref: "#/components/schemas/SearchMetadata"
         flights:
-          x-order: 3
           type: array
+          x-order: 3
+          description: Outbound flights (origin -> destination).
+          items:
+            $ref: "#/components/schemas/Flight"
+        return_flights:
+          type: array
+          x-order: 4
+          description: Only for round trips (returnDate set) - flights destination -> origin.
           items:
             $ref: "#/components/schemas/Flight"
 
@@ -131,6 +138,10 @@ components:
         departure_date:
           type: string
           format: date
+        return_date:
+          type: string
+          format: date
+          nullable: true
         passengers:
           type: integer
         cabin_class:

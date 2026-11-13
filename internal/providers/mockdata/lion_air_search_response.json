@@ -134,6 +134,97 @@
             "hold": "20 kg"
           }
         }
+      },
+      {
+        "id": "JT741",
+        "carrier": {
+          "name": "Lion Air",
+          "iata": "JT"
+        },
+        "route": {
+          "from": {
+            "code": "DPS",
+            "name": "Ngurah Rai International",
+            "city": "Denpasar"
+          },
+          "to": {
+            "code": "CGK",
+            "name": "Soekarno-Hatta International",
+            "city": "Jakarta"
+          }
+        },
+        "schedule": {
+          "departure": "2025-12-20T09:15:00",
+          "departure_timezone": "Asia/Makassar",
+          "arrival": "2025-12-20T09:55:00",
+          "arrival_timezone": "Asia/Jakarta"
+        },
+        "flight_time": 100,
+        "is_direct": true,
+        "pricing": {
+          "total": 920000,
+          "currency": "IDR",
+          "fare_type": "ECONOMY"
+        },
+        "seats_left": 40,
+        "plane_type": "Boeing 737-900ER",
+        "services": {
+          "wifi_available": false,
+          "meals_included": false,
+          "baggage_allowance": {
+            "cabin": "7 kg",
+            "hold": "20 kg"
+          }
+        }
+      },
+      {
+        "id": "JT743",
+        "carrier": {
+          "name": "Lion Air",
+          "iata": "JT"
+        },
+        "route": {
+          "from": {
+            "code": "DPS",
+            "name": "Ngurah Rai International",
+            "city": "Denpasar"
+          },
+          "to": {
+            "code": "CGK",
+            "name": "Soekarno-Hatta International",
+            "city": "Jakarta"
+          }
+        },
+        "schedule": {
+          "departure": "2025-12-20T13:00:00",
+          "departure_timezone": "Asia/Makassar",
+          "arrival": "2025-12-20T16:30:00",
+          "arrival_timezone": "Asia/Jakarta"
+        },
+        "flight_time": 270,
+        "is_direct": false,
+        "stop_count": 1,
+        "layovers": [
+          {
+            "airport": "SUB",
+            "duration_minutes": 70
+          }
+        ],
+        "pricing": {
+          "total": 760000,
+          "currency": "IDR",
+          "fare_type": "ECONOMY"
+        },
+        "seats_left": 50,
+        "plane_type": "Boeing 737-800",
+        "services": {
+          "wifi_available": false,
+          "meals_included": false,
+          "baggage_allowance": {
+            "cabin": "7 kg",
+            "hold": "20 kg"
+          }
+        }
       }
     ]
   }

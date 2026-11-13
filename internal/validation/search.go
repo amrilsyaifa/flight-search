@@ -57,6 +57,8 @@ func SearchCriteria(c models.SearchCriteria) error {
 		return invalid("destination must differ from origin")
 	case c.Passengers < 1 || c.Passengers > 9:
 		return invalid("passengers must be between 1 and 9")
+	case c.ReturnDate != nil && c.ReturnDate.Before(c.DepartureDate):
+		return invalid("returnDate must not be before departureDate")
 	}
 
 	switch c.CabinClass {

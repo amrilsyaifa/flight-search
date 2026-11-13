@@ -30,12 +30,9 @@ func toCriteria(b oapi.SearchRequest) models.SearchCriteria {
 
 // ---------- response: domain -> API ----------
 func toResponse(r models.SearchResult) oapi.SearchResponse {
-	flights := make([]oapi.Flight, 0, len(r.Flights))
-	for _, f := range r.Flights {
-		flights = append(flights, toAPIFlight(f))
-	}
+	flights := toAPIFlights(r.Flights)
 
-	return oapi.SearchResponse{
+	resp := oapi.SearchResponse{
 		SearchCriteria: oapi.SearchCriteria{
 			Origin:        r.Criteria.Origin,
 			Destination:   r.Criteria.Destination,
@@ -44,7 +41,7 @@ func toResponse(r models.SearchResult) oapi.SearchResponse {
 			CabinClass:    oapi.CabinClass(r.Criteria.CabinClass),
 		},
 		Metadata: oapi.SearchMetadata{
-			TotalResults:       len(flights),
+			TotalResults:       len(r.Flights) + len(r.ReturnFlights),
 			ProvidersQueried:   r.Metadata.ProvidersQueried,
 			ProvidersSucceeded: r.Metadata.ProvidersSucceeded,
 			ProvidersFailed:    r.Metadata.ProvidersFailed,
@@ -53,6 +50,24 @@ func toResponse(r models.SearchResult) oapi.SearchResponse {
 		},
 		Flights: flights,
 	}
+
+	if r.Criteria.ReturnDate != nil {
+		d := toAPIDate(*r.Criteria.ReturnDate)
+		resp.SearchCriteria.ReturnDate = &d
+
+		// Present (possibly empty) for round trips, omitted for one-way.
+		back := toAPIFlights(r.ReturnFlights)
+		resp.ReturnFlights = &back
+	}
+	return resp
+}
+
+func toAPIFlights(in []models.Flight) []oapi.Flight {
+	out := make([]oapi.Flight, 0, len(in)) // never nil: JSON [] not null
+	for _, f := range in {
+		out = append(out, toAPIFlight(f))
+	}
+	return out
 }
 
 func toAPIFlight(f models.Flight) oapi.Flight {
