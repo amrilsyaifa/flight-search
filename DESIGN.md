@@ -23,6 +23,7 @@ This document explains the main design decisions behind the Flight Search & Aggr
 - [12. Multi-city](#12-multi-city)
 - [13. Response format](#13-response-format)
 - [14. API-first with OpenAPI](#14-api-first-with-openapi)
+- [15. POST instead of GET for search](#15-post-instead-of-get-for-search)
 - [Assumptions](#assumptions)
 - [Data inconsistencies found and handled](#data-inconsistencies-found-and-handled)
 - [Performance and complexity](#performance-and-complexity)
@@ -42,6 +43,7 @@ This document explains the main design decisions behind the Flight Search & Aggr
 - **The same flight from several providers** is merged, keeping the cheapest offer, after filtering.
 - **Every search is a list of legs**: one-way (1), round trip (2) and multi-city (2–5, separate endpoint) share one parallel code path.
 - **API-first**: the OpenAPI spec is the contract; server code is generated, and the build fails if an endpoint is not implemented.
+- **Search uses POST**, not GET: the request has nested filters, sort and legs that do not fit a query string, and HTTP caching is replaced by Redis caching.
 
 ---
 
@@ -178,6 +180,21 @@ The assignment data contains no flight sold by two providers, so this behaviour 
 ## 14. API-first with OpenAPI
 
 `api/openapi.yaml` is the contract. Server types and routing are generated with oapi-codegen (strict server on `net/http`, no framework). A compile-time check (`var _ oapi.StrictServerInterface = (*Server)(nil)`) makes the build fail if an endpoint in the spec is not implemented. Generated code is committed so the project builds without the generator.
+
+## 15. POST instead of GET for search
+
+Search is semantically a **GET**: it changes nothing on the server (safe) and repeating it gives the same result (idempotent). GET would bring HTTP/CDN caching, shareable URLs and automatic retries by clients and proxies. POST was still chosen:
+
+- **The request is nested.** Filters, sort options and multi-city legs are objects and arrays. A query string is flat, and there is no single agreed convention for encoding nested data in it (`?filters[airlines]=GA&filters[airlines]=JT&sort[by]=price`); clients and servers handle such formats differently.
+- **The assignment defines the request as JSON** ("Search Request Structure (JSON)"), and following it keeps requests and responses easy to compare with what is expected.
+- **URL length limits.** Browsers, proxies and servers cap URL length; a 5-leg multi-city search with filters gets close. A JSON body has no such limit.
+- **Validation.** A JSON body is validated against the OpenAPI schema and decoded into typed structs by the generated code; nested query parameters are much harder to validate the same way.
+- **The main loss is covered.** The strongest reason for GET is HTTP caching. Here caching happens server-side in Redis, keyed by route and date, so the API does not rely on HTTP caches.
+
+**Possible evolutions**
+
+- A **GET variant for simple one-way searches** without filters (`GET /api/v1/flights/search?origin=CGK&destination=DPS&date=2025-12-15`), keeping POST for the full search. The most common case gets GET's benefits without complicating complex searches.
+- The proposed HTTP **`QUERY` method** (an IETF draft) is designed exactly for this case: safe and idempotent like GET, with a request body like POST. Tooling support is not widespread yet, so it is not practical today.
 
 ## Assumptions
 

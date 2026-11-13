@@ -23,6 +23,7 @@ Dokumen ini menjelaskan keputusan desain utama di balik Flight Search & Aggregat
 - [12. Multi-city](#12-multi-city)
 - [13. Format response](#13-format-response)
 - [14. API-first dengan OpenAPI](#14-api-first-dengan-openapi)
+- [15. POST, bukan GET, untuk pencarian](#15-post-bukan-get-untuk-pencarian)
 - [Asumsi](#asumsi)
 - [Inkonsistensi data yang ditemukan dan ditangani](#inkonsistensi-data-yang-ditemukan-dan-ditangani)
 - [Performa dan kompleksitas](#performa-dan-kompleksitas)
@@ -42,6 +43,7 @@ Dokumen ini menjelaskan keputusan desain utama di balik Flight Search & Aggregat
 - **Penerbangan yang sama dari beberapa provider** digabung dengan mempertahankan penawaran termurah, setelah filter.
 - **Setiap pencarian adalah daftar segmen**: satu arah (1), round-trip (2), dan multi-city (2–5, endpoint terpisah) memakai satu jalur kode paralel yang sama.
 - **API-first**: spec OpenAPI adalah kontraknya; kode server di-generate, dan build gagal kalau ada endpoint yang belum diimplementasikan.
+- **Pencarian memakai POST**, bukan GET: request-nya berisi filter, sort, dan segmen bertingkat yang tidak cocok untuk query string, dan caching HTTP digantikan oleh caching di Redis.
 
 ---
 
@@ -178,6 +180,21 @@ Data assignment tidak berisi penerbangan yang dijual dua provider, sehingga peri
 ## 14. API-first dengan OpenAPI
 
 `api/openapi.yaml` adalah kontraknya. Tipe server dan routing di-generate dengan oapi-codegen (strict server di atas `net/http`, tanpa framework). Pengecekan saat compile (`var _ oapi.StrictServerInterface = (*Server)(nil)`) membuat build gagal kalau ada endpoint di spec yang belum diimplementasikan. Kode hasil generate ikut di-commit supaya project bisa di-build tanpa generator.
+
+## 15. POST, bukan GET, untuk pencarian
+
+Secara semantik, pencarian adalah **GET**: tidak mengubah apa pun di server (safe) dan mengulanginya memberi hasil yang sama (idempotent). GET akan memberi caching HTTP/CDN, URL yang bisa dibagikan, dan retry otomatis oleh client maupun proxy. POST tetap dipilih karena:
+
+- **Request-nya bertingkat.** Filter, opsi sort, dan segmen multi-city berupa objek dan array. Query string bersifat datar, dan tidak ada satu konvensi yang disepakati untuk mengodekan data bertingkat di dalamnya (`?filters[airlines]=GA&filters[airlines]=JT&sort[by]=price`); setiap client dan server menangani format seperti ini dengan cara berbeda.
+- **Assignment mendefinisikan request dalam bentuk JSON** ("Search Request Structure (JSON)"), dan mengikutinya membuat request dan response mudah dibandingkan dengan yang diharapkan.
+- **Batas panjang URL.** Browser, proxy, dan server membatasi panjang URL; pencarian multi-city 5 segmen dengan filter bisa mendekati batas itu. Body JSON tidak punya batas seperti ini.
+- **Validasi.** Body JSON divalidasi terhadap schema OpenAPI dan di-decode menjadi struct bertipe oleh kode hasil generate; parameter query bertingkat jauh lebih sulit divalidasi dengan cara yang sama.
+- **Kerugian utamanya sudah tertutup.** Alasan terkuat memakai GET adalah caching HTTP. Di sini caching dilakukan di sisi server dengan Redis, berdasarkan rute dan tanggal, sehingga API tidak bergantung pada cache HTTP.
+
+**Kemungkinan pengembangan**
+
+- **Varian GET untuk pencarian satu arah sederhana** tanpa filter (`GET /api/v1/flights/search?origin=CGK&destination=DPS&date=2025-12-15`), dengan POST tetap dipakai untuk pencarian lengkap. Kasus yang paling umum mendapat keuntungan GET tanpa mempersulit pencarian yang kompleks.
+- **Method HTTP `QUERY`** yang sedang diusulkan (draft IETF) dirancang persis untuk kasus ini: safe dan idempotent seperti GET, tapi boleh membawa body seperti POST. Dukungan tooling-nya belum luas, sehingga belum praktis dipakai saat ini.
 
 ## Asumsi
 
