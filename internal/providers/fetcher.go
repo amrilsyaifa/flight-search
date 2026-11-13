@@ -10,3 +10,4 @@ type Fetcher interface {
 }
 
 var ErrProviderUnavailable = errors.New("provider unavailable")
+var ErrRateLimited = errors.New("provider rate limit reached")

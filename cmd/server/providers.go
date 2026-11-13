@@ -18,19 +18,30 @@ var retryPolicy = providers.RetryPolicy{
 	MaxDelay:    200 * time.Millisecond,
 }
 
-func fetcher(name string, data []byte, cfg providers.MockConfig, logger *slog.Logger) providers.Fetcher {
-	mock := providers.NewMockFetcher(data, cfg, nil)
+type providerDeps struct {
+	limiter   providers.Limiter
+	rateLimit int // calls per second, per provider
+	logger    *slog.Logger
+}
+
+func (d providerDeps) fetcher(name string, data []byte, mock providers.MockConfig) providers.Fetcher {
+	logger := d.logger.With("provider", name)
+
+	var f providers.Fetcher = providers.NewMockFetcher(data, mock, nil)
+	// rate limiter
+	f = providers.NewRateLimitedFetcher(f, d.limiter, name, d.rateLimit, logger)
 	// retry exponential backoff
-	return providers.NewRetryFetcher(mock, retryPolicy, logger.With("provider", name))
+	f = providers.NewRetryFetcher(f, retryPolicy, logger)
+	return f
 }
 
 // init providers
-func buildProviders(logger *slog.Logger) []providers.Provider {
+func buildProviders(d providerDeps) []providers.Provider {
 	ms := time.Millisecond
 	return []providers.Provider{
-		garuda.New(fetcher("Garuda Indonesia", mockdata.GarudaIndonesia, providers.MockConfig{MinDelay: 50 * ms, MaxDelay: 100 * ms}, logger), logger),
-		lion.New(fetcher("Lion Air", mockdata.LionAir, providers.MockConfig{MinDelay: 100 * ms, MaxDelay: 200 * ms}, logger), logger),
-		batik.New(fetcher("Batik Air", mockdata.BatikAir, providers.MockConfig{MinDelay: 200 * ms, MaxDelay: 400 * ms}, logger), logger),
-		airasia.New(fetcher("AirAsia", mockdata.AirAsia, providers.MockConfig{MinDelay: 50 * ms, MaxDelay: 150 * ms, FailureRate: 0.1}, logger), logger),
+		garuda.New(d.fetcher("Garuda Indonesia", mockdata.GarudaIndonesia, providers.MockConfig{MinDelay: 50 * ms, MaxDelay: 100 * ms}), d.logger),
+		lion.New(d.fetcher("Lion Air", mockdata.LionAir, providers.MockConfig{MinDelay: 100 * ms, MaxDelay: 200 * ms}), d.logger),
+		batik.New(d.fetcher("Batik Air", mockdata.BatikAir, providers.MockConfig{MinDelay: 200 * ms, MaxDelay: 400 * ms}), d.logger),
+		airasia.New(d.fetcher("AirAsia", mockdata.AirAsia, providers.MockConfig{MinDelay: 50 * ms, MaxDelay: 150 * ms, FailureRate: 0.1}), d.logger),
 	}
 }

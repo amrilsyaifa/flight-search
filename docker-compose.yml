@@ -6,7 +6,8 @@ services:
     environment:
       HTTP_PORT: ${PORT:-8080}
       PROVIDER_TIMEOUT: ${PROVIDER_TIMEOUT:-2s}
-      CACHE_DRIVER: redis
+      PROVIDER_RATE_LIMIT: ${PROVIDER_RATE_LIMIT:-10}
+      STORE_DRIVER: redis
       CACHE_TTL: ${CACHE_TTL:-2m}
       REDIS_ADDR: redis:6379
     depends_on:

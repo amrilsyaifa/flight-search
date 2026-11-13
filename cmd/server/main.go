@@ -31,16 +31,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	logger.Info("config loaded",
+		"http_port", cfg.HTTPPort,
+		"store_driver", cfg.StoreDriver,
+		"provider_timeout", cfg.ProviderTimeout.String(),
+		"provider_rate_limit", cfg.ProviderRateLimit,
+		"cache_ttl", cfg.CacheTTL.String(),
+	)
+
 	//Dependency
-	flightCache, closeCache, err := buildCache(cfg, logger)
+	st, err := buildStores(cfg, logger)
 	if err != nil {
-		logger.Error("cache unavailable", "error", err)
+		logger.Error("store unavailable", "error", err)
 		os.Exit(1)
 	}
-	defer closeCache()
+	defer st.close()
 
-	agg := aggregator.New(buildProviders(logger), cfg.ProviderTimeout, logger)
-	searchService := services.NewSearchService(agg, flightCache, cfg.CacheTTL, logger)
+	providerList := buildProviders(providerDeps{
+		limiter:   st.limiter,
+		rateLimit: cfg.ProviderRateLimit,
+		logger:    logger,
+	})
+	agg := aggregator.New(providerList, cfg.ProviderTimeout, logger)
+	searchService := services.NewSearchService(agg, st.cache, cfg.CacheTTL, logger)
 	server := handlers.NewServer(health.New(), flight.New(searchService, logger))
 	strict := oapi.NewStrictHandler(server, nil)
 	mux := http.NewServeMux()
@@ -73,7 +86,7 @@ func main() {
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Error("gracefull shutdown failed", "error", err)
+		logger.Error("graceful shutdown failed", "error", err)
 		os.Exit(1)
 	}
 
