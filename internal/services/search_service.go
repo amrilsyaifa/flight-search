@@ -23,7 +23,7 @@ func NewSearchService(agg FlightAggregator, logger *slog.Logger) *SearchService 
 	return &SearchService{aggregator: agg, logger: logger}
 }
 
-// Adapter search for variant plane
+// Adapter each provider
 func (s *SearchService) Search(ctx context.Context, c models.SearchCriteria) (models.SearchResult, error) {
 	if err := validation.SearchCriteria(c); err != nil {
 		return models.SearchResult{}, err
