@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	"github.com/amrilsyaifa/flight-search/internal/aggregator"
 	"github.com/amrilsyaifa/flight-search/internal/models"
 	"github.com/amrilsyaifa/flight-search/internal/pkg/helper/search"
@@ -27,6 +29,7 @@ type SearchService struct {
 	cache      Cache
 	cacheTTL   time.Duration
 	logger     *slog.Logger
+	inflight   singleflight.Group
 }
 
 func NewSearchService(agg FlightAggregator, c Cache, cacheTTL time.Duration, logger *slog.Logger) *SearchService {
@@ -66,12 +69,18 @@ func (s *SearchService) fetch(ctx context.Context, c models.SearchCriteria) (agg
 		return res, true
 	}
 
-	res := s.aggregator.Search(ctx)
+	v, _, _ := s.inflight.Do(key, func() (any, error) {
+		shared := context.WithoutCancel(ctx)
 
-	if res.Failed == 0 {
-		s.writeCache(ctx, key, res)
-	}
-	return res, false
+		res := s.aggregator.Search(shared)
+
+		if res.Failed == 0 {
+			s.writeCache(shared, key, res)
+		}
+		return res, nil
+	})
+
+	return v.(aggregator.Result), false
 }
 
 func cacheKey(c models.SearchCriteria) string {
