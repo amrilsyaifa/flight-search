@@ -13,6 +13,7 @@ import (
 	_ "time/tzdata" // Embeds the IANA time zone database
 
 	"github.com/amrilsyaifa/flight-search/api"
+	"github.com/amrilsyaifa/flight-search/internal/aggregator"
 	"github.com/amrilsyaifa/flight-search/internal/config"
 	"github.com/amrilsyaifa/flight-search/internal/handlers"
 	"github.com/amrilsyaifa/flight-search/internal/handlers/docs"
@@ -24,11 +25,15 @@ import (
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Error("invalid config", "error", err)
+		os.Exit(1)
+	}
 
 	//Dependency
-
-	searchService := services.NewSearchService(buildProviders(logger), logger)
+	agg := aggregator.New(buildProviders(logger), cfg.ProviderTimeout, logger)
+	searchService := services.NewSearchService(agg, logger)
 	server := handlers.NewServer(health.New(), flight.New(searchService, logger))
 	strict := oapi.NewStrictHandler(server, nil)
 	mux := http.NewServeMux()

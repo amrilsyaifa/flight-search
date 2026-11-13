@@ -58,20 +58,20 @@ type ErrorResponse struct {
 
 // Flight defines model for Flight.
 type Flight struct {
-	Aircraft       *string     `json:"aircraft"`
-	Airline        Airline     `json:"airline"`
-	Amenities      []string    `json:"amenities"`
-	Arrival        FlightPoint `json:"arrival"`
-	AvailableSeats int         `json:"available_seats"`
-	Baggage        Baggage     `json:"baggage"`
-	CabinClass     CabinClass  `json:"cabin_class"`
-	Departure      FlightPoint `json:"departure"`
-	Duration       Duration    `json:"duration"`
-	FlightNumber   string      `json:"flight_number"`
 	Id             string      `json:"id"`
-	Price          Price       `json:"price"`
 	Provider       string      `json:"provider"`
+	Airline        Airline     `json:"airline"`
+	FlightNumber   string      `json:"flight_number"`
+	Departure      FlightPoint `json:"departure"`
+	Arrival        FlightPoint `json:"arrival"`
+	Duration       Duration    `json:"duration"`
 	Stops          int         `json:"stops"`
+	Price          Price       `json:"price"`
+	AvailableSeats int         `json:"available_seats"`
+	CabinClass     CabinClass  `json:"cabin_class"`
+	Aircraft       *string     `json:"aircraft"`
+	Amenities      []string    `json:"amenities"`
+	Baggage        Baggage     `json:"baggage"`
 }
 
 // FlightPoint defines model for FlightPoint.
@@ -124,9 +124,9 @@ type SearchRequest struct {
 
 // SearchResponse defines model for SearchResponse.
 type SearchResponse struct {
-	Flights        []Flight       `json:"flights"`
-	Metadata       SearchMetadata `json:"metadata"`
 	SearchCriteria SearchCriteria `json:"search_criteria"`
+	Metadata       SearchMetadata `json:"metadata"`
+	Flights        []Flight       `json:"flights"`
 }
 
 // SearchFlightsJSONRequestBody defines body for SearchFlights for application/json ContentType.

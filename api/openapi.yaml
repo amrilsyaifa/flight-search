@@ -90,10 +90,13 @@ components:
       required: [search_criteria, metadata, flights]
       properties:
         search_criteria:
+          x-order: 1
           $ref: "#/components/schemas/SearchCriteria"
         metadata:
+          x-order: 2
           $ref: "#/components/schemas/SearchMetadata"
         flights:
+          x-order: 3
           type: array
           items:
             $ref: "#/components/schemas/Flight"
@@ -135,35 +138,49 @@ components:
       required: [id, provider, airline, flight_number, departure, arrival, duration, stops, price, available_seats, cabin_class, aircraft, amenities, baggage]
       properties:
         id:
+          x-order: 1
           type: string
         provider:
+          x-order: 2
           type: string
         airline:
+          x-order: 3
           $ref: "#/components/schemas/Airline"
         flight_number:
+          x-order: 4
           type: string
         departure:
+          x-order: 5
           $ref: "#/components/schemas/FlightPoint"
         arrival:
+          x-order: 6
           $ref: "#/components/schemas/FlightPoint"
         duration:
+          x-order: 7
           $ref: "#/components/schemas/Duration"
         stops:
+          x-order: 8
           type: integer
         price:
+          x-order: 9
           $ref: "#/components/schemas/Price"
         available_seats:
+          x-order: 10
           type: integer
         cabin_class:
+          x-order: 11
           $ref: "#/components/schemas/CabinClass"
         aircraft:
+          x-order: 12
           type: string
           nullable: true
         amenities:
+          x-order: 13
           type: array
           items:
             type: string
         baggage:
+          x-order: 14
           $ref: "#/components/schemas/Baggage"
 
     Airline:
