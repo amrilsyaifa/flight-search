@@ -24,6 +24,20 @@ const (
 	PremiumEconomy CabinClass = "premium_economy"
 )
 
+// Defines values for SortOptionBy.
+const (
+	SortOptionByArrivalTime   SortOptionBy = "arrival_time"
+	SortOptionByDepartureTime SortOptionBy = "departure_time"
+	SortOptionByDuration      SortOptionBy = "duration"
+	SortOptionByPrice         SortOptionBy = "price"
+)
+
+// Defines values for SortOptionOrder.
+const (
+	Asc  SortOptionOrder = "asc"
+	Desc SortOptionOrder = "desc"
+)
+
 // Airline defines model for Airline.
 type Airline struct {
 	Code string `json:"code"`
@@ -102,6 +116,26 @@ type SearchCriteria struct {
 	Passengers    int                `json:"passengers"`
 }
 
+// SearchFilters All filters are optional. Omitted means no constraint.
+type SearchFilters struct {
+	// Airlines Airline IATA codes, e.g. ["GA", "JT"].
+	Airlines *[]string `json:"airlines,omitempty"`
+
+	// ArrivalTimeFrom Local time at the destination airport (HH:MM).
+	ArrivalTimeFrom *string `json:"arrivalTimeFrom,omitempty"`
+	ArrivalTimeTo   *string `json:"arrivalTimeTo,omitempty"`
+
+	// DepartureTimeFrom Local time at the origin airport (HH:MM).
+	DepartureTimeFrom  *string `json:"departureTimeFrom,omitempty"`
+	DepartureTimeTo    *string `json:"departureTimeTo,omitempty"`
+	MaxDurationMinutes *int    `json:"maxDurationMinutes,omitempty"`
+	MaxPrice           *int64  `json:"maxPrice,omitempty"`
+
+	// MaxStops 0 means direct flights only.
+	MaxStops *int   `json:"maxStops,omitempty"`
+	MinPrice *int64 `json:"minPrice,omitempty"`
+}
+
 // SearchMetadata defines model for SearchMetadata.
 type SearchMetadata struct {
 	CacheHit           bool  `json:"cache_hit"`
@@ -114,12 +148,16 @@ type SearchMetadata struct {
 
 // SearchRequest defines model for SearchRequest.
 type SearchRequest struct {
-	CabinClass    CabinClass          `json:"cabinClass"`
-	DepartureDate openapi_types.Date  `json:"departureDate"`
-	Destination   string              `json:"destination"`
-	Origin        string              `json:"origin"`
-	Passengers    int                 `json:"passengers"`
-	ReturnDate    *openapi_types.Date `json:"returnDate"`
+	CabinClass    CabinClass         `json:"cabinClass"`
+	DepartureDate openapi_types.Date `json:"departureDate"`
+	Destination   string             `json:"destination"`
+
+	// Filters All filters are optional. Omitted means no constraint.
+	Filters    *SearchFilters      `json:"filters,omitempty"`
+	Origin     string              `json:"origin"`
+	Passengers int                 `json:"passengers"`
+	ReturnDate *openapi_types.Date `json:"returnDate"`
+	Sort       *SortOption         `json:"sort,omitempty"`
 }
 
 // SearchResponse defines model for SearchResponse.
@@ -128,6 +166,18 @@ type SearchResponse struct {
 	Metadata       SearchMetadata `json:"metadata"`
 	Flights        []Flight       `json:"flights"`
 }
+
+// SortOption defines model for SortOption.
+type SortOption struct {
+	By    *SortOptionBy    `json:"by,omitempty"`
+	Order *SortOptionOrder `json:"order,omitempty"`
+}
+
+// SortOptionBy defines model for SortOption.By.
+type SortOptionBy string
+
+// SortOptionOrder defines model for SortOption.Order.
+type SortOptionOrder string
 
 // SearchFlightsJSONRequestBody defines body for SearchFlights for application/json ContentType.
 type SearchFlightsJSONRequestBody = SearchRequest

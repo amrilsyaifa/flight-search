@@ -2,6 +2,7 @@ openapi: 3.0.3
 info:
   title: Flight Search API
   version: 1.0.0
+
 paths:
   /health:
     get:
@@ -13,6 +14,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+
   
   /api/v1/flights/search:
     post:
@@ -31,6 +33,13 @@ paths:
               returnDate: null
               passengers: 1
               cabinClass: economy
+              filters:
+                maxPrice: 1000000
+                maxStops: 0
+              sort:
+                by: price
+                order: asc
+
       responses:
         "200":
           description: Aggregated results
@@ -38,18 +47,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SearchResponse"
+
         "400":
           description: Invalid request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
         "500":
           description: Unexpected error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthResponse:
@@ -59,9 +71,11 @@ components:
         status:
           type: string
           example: ok
+
     CabinClass:
       type: string
       enum: [economy, premium_economy, business, first]
+
     SearchRequest:
       type: object
       required: [origin, destination, departureDate, passengers, cabinClass]
@@ -85,6 +99,11 @@ components:
           maximum: 9
         cabinClass:
           $ref: "#/components/schemas/CabinClass"
+        filters:
+          $ref: "#/components/schemas/SearchFilters"
+        sort:
+          $ref: "#/components/schemas/SortOption"
+
     SearchResponse:
       type: object
       required: [search_criteria, metadata, flights]
@@ -100,6 +119,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Flight"
+
     SearchCriteria:
       type: object
       required: [origin, destination, departure_date, passengers, cabin_class]
@@ -115,6 +135,7 @@ components:
           type: integer
         cabin_class:
           $ref: "#/components/schemas/CabinClass"
+
     SearchMetadata:
       type: object
       required: [total_results, providers_queried, providers_succeeded, providers_failed, search_time_ms, cache_hit]
@@ -234,6 +255,59 @@ components:
           type: string
         checked:
           type: string
+
+    SearchFilters:
+      type: object
+      description: All filters are optional. Omitted means no constraint.
+      properties:
+        minPrice:
+          type: integer
+          format: int64
+          minimum: 0
+        maxPrice:
+          type: integer
+          format: int64
+          minimum: 0
+        maxStops:
+          type: integer
+          minimum: 0
+          description: 0 means direct flights only.
+        departureTimeFrom:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          description: Local time at the origin airport (HH:MM).
+          example: "06:00"
+        departureTimeTo:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          example: "12:00"
+        arrivalTimeFrom:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          description: Local time at the destination airport (HH:MM).
+        arrivalTimeTo:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        airlines:
+          type: array
+          description: Airline IATA codes, e.g. ["GA", "JT"].
+          items:
+            type: string
+        maxDurationMinutes:
+          type: integer
+          minimum: 1
+
+    SortOption:
+      type: object
+      properties:
+        by:
+          type: string
+          enum: [price, duration, departure_time, arrival_time]
+          default: price
+        order:
+          type: string
+          enum: [asc, desc]
+          default: asc
 
     ErrorResponse:
       type: object

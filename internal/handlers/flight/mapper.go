@@ -110,3 +110,72 @@ func formatDuration(minutes int) string {
 		return fmt.Sprintf("%dh %dm", h, m)
 	}
 }
+
+func toSearchRequest(b oapi.SearchRequest) (models.SearchRequest, error) {
+	filters, err := toFilters(b.Filters)
+	if err != nil {
+		return models.SearchRequest{}, err
+	}
+	return models.SearchRequest{
+		Criteria: toCriteria(b),
+		Filters:  filters,
+		Sort:     toSort(b.Sort),
+	}, nil
+}
+
+func toFilters(f *oapi.SearchFilters) (models.SearchFilters, error) {
+	if f == nil {
+		return models.SearchFilters{}, nil
+	}
+	out := models.SearchFilters{
+		MinPrice:           f.MinPrice,
+		MaxPrice:           f.MaxPrice,
+		MaxStops:           f.MaxStops,
+		MaxDurationMinutes: f.MaxDurationMinutes,
+	}
+	if f.Airlines != nil {
+		for _, a := range *f.Airlines {
+			out.Airlines = append(out.Airlines, strings.ToUpper(strings.TrimSpace(a)))
+		}
+	}
+
+	var err error
+	if out.DepartureFrom, err = parseTimeFilter("departureTimeFrom", f.DepartureTimeFrom); err != nil {
+		return models.SearchFilters{}, err
+	}
+	if out.DepartureTo, err = parseTimeFilter("departureTimeTo", f.DepartureTimeTo); err != nil {
+		return models.SearchFilters{}, err
+	}
+	if out.ArrivalFrom, err = parseTimeFilter("arrivalTimeFrom", f.ArrivalTimeFrom); err != nil {
+		return models.SearchFilters{}, err
+	}
+	if out.ArrivalTo, err = parseTimeFilter("arrivalTimeTo", f.ArrivalTimeTo); err != nil {
+		return models.SearchFilters{}, err
+	}
+	return out, nil
+}
+
+func parseTimeFilter(field string, v *string) (*models.TimeOfDay, error) {
+	if v == nil {
+		return nil, nil
+	}
+	t, err := models.ParseTimeOfDay(*v)
+	if err != nil {
+		return nil, fmt.Errorf("%w: filters.%s: %v", models.ErrInvalidRequest, field, err)
+	}
+	return &t, nil
+}
+
+func toSort(s *oapi.SortOption) models.SortOption {
+	out := models.DefaultSort
+	if s == nil {
+		return out
+	}
+	if s.By != nil {
+		out.By = models.SortField(*s.By)
+	}
+	if s.Order != nil {
+		out.Order = models.SortOrder(*s.Order)
+	}
+	return out
+}

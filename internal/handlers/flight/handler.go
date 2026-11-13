@@ -10,7 +10,7 @@ import (
 )
 
 type SearchService interface {
-	Search(ctx context.Context, c models.SearchCriteria) (models.SearchResult, error)
+	Search(ctx context.Context, req models.SearchRequest) (models.SearchResult, error)
 }
 
 type Handler struct {
@@ -27,7 +27,12 @@ func (h *Handler) SearchFlights(ctx context.Context, req oapi.SearchFlightsReque
 		return oapi.SearchFlights400JSONResponse(errorBody("invalid_request", "request body is required")), nil
 	}
 
-	result, err := h.search.Search(ctx, toCriteria(*req.Body))
+	searchReq, err := toSearchRequest(*req.Body)
+	if err != nil {
+		return oapi.SearchFlights400JSONResponse(errorBody("invalid_request", err.Error())), nil
+	}
+
+	result, err := h.search.Search(ctx, searchReq)
 	if err != nil {
 		if errors.Is(err, models.ErrInvalidRequest) {
 			return oapi.SearchFlights400JSONResponse(errorBody("invalid_request", err.Error())), nil
