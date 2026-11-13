@@ -34,6 +34,7 @@ func (s *SearchService) Search(ctx context.Context, req models.SearchRequest) (m
 	agg := s.aggregator.Search(ctx)
 
 	flights := search.Filter(agg.Flights, req.Criteria, req.Filters)
+	flights = search.Dedupe(flights)
 	search.Sort(flights, req.Sort)
 
 	return models.SearchResult{
